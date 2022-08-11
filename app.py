@@ -2,12 +2,17 @@ from flask import Flask, request
 from elasticsearch import Elasticsearch
 import json
 import logging
+import os
 
 
 app = Flask(__name__)
-url = 'http://192.168.0.201:9200'
+
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+
+url = os.environ['URL']
 es = Elasticsearch(url)
-index_name = 'cities'
+index_name = os.environ['INDEX_NAME']
 all_cities = []
 doc = {}
 
@@ -37,8 +42,10 @@ def add_city_population(city, population):
     doc['population'] = population
     try:
         es.index(index=index_name, doc_type="_doc", body=doc)
-    except:
         logging.info(str(doc) + ' added in the data!')
+    except Exception as e:
+        logging.error(str(e))
+    return doc
 
 
 @app.route("/citydetails")
@@ -60,7 +67,7 @@ def get_all_cities_population():
     return json.dumps({'cities': all_cities})
 
 
-        
+
 @app.route("/citymodify", methods=['POST'])
 def update_city_population():
     json_input = request.json
@@ -77,9 +84,11 @@ def update_city_population():
     }
 
     q_results = es.search(index=index_name, body=query)
+    logging.info('existing city search' + str(q_results))
 
     if q_results['hits']['total']['value'] == 0:
-        add_city_population(json_input['city'], json_input['population'])
+        city_po = add_city_population(json_input['city'], json_input['population'])
+        return json.dumps({'added data': city_po})
     else:
         for i in range(len(q_results['hits']['hits'])):
             doc_body = q_results['hits']['hits'][i]['_source']
@@ -87,10 +96,10 @@ def update_city_population():
             doc_body['population'] =  json_input['population']
             try:
                 updated_doc = es.update(index=index_name, id=doc_id, body={"doc": doc_body})
-                logging.info(str(doc_body) + " successfully updated!")
+                logging.info("updated doc " + str(updated_doc))
+                return json.dumps({'updated data': doc_body})
             except Exception as e:
                 logging.info(str(e))
-    return json.dumps({'updated data': updated_doc})
 
 @app.route('/health')
 def health_check():
