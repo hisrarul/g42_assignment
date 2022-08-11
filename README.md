@@ -34,7 +34,12 @@ curl --location --request POST 'http://192.168.59.103:30007/citymodify' \
 }'
 ```
 
-Note: The app service exposed on nodeport hence it may change in your case 
+#### Health probe
+```bash
+curl --location --request GET 'http://192.168.59.103:30007/health'
+```
+
+**Note**: The app service exposed on nodeport hence it may change in your case 
 
 `http://192.168.59.103:30007` will be replaced with your `http://<node_ip>:<app1_svc_node_port>`
 
